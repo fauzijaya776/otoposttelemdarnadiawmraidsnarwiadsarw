@@ -1,0 +1,3 @@
+// Dipindahkan ke ../legacy/telegramClient.js pada versi 2.0 (ganti ke Bot API BotFather).
+// File ini tidak lagi dipakai dan aman untuk dihapus.
+throw new Error('src/telegramClient.js sudah tidak dipakai. Jalankan "npm start" (src/index.js).');

@@ -1,0 +1,16 @@
+{
+  "name": "telegram-auto-poster",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Bot auto post Telegram (BotFather) dengan pengaturan teks, gambar, interval, dan multi-grup lewat chat.",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node test/smoke.test.js"
+  },
+  "dependencies": {}
+}
