@@ -1,84 +1,151 @@
-# Telegram Auto Poster (Bot API)
+# Telegram Auto Poster
 
-Bot auto-post Telegram yang **seluruh pengaturannya dilakukan dari chat Telegram**: teks, gambar, interval kirim, dan daftar grup tujuan. Hanya satu akun (owner) yang boleh memerintah bot.
+Auto-post ke banyak grup Telegram **dari akun pribadi Anda**, dengan seluruh pengaturan dilakukan lewat **bot BotFather** — teks, gambar, interval, daftar grup, on/off, semuanya dari chat.
 
-Tanpa dependency sama sekali — cukup Node.js 18 atau lebih baru. Tidak perlu `npm install`.
+```
+Anda ──chat──> Bot (BotFather)  ──perintah──>  Akun Telegram Anda ──posting──> Grup A, B, C…
+     (remote control)                           (pengirim asli)
+```
 
-## 1. Buat bot di BotFather
+## ⚠️ Kenapa kode OTP tidak bisa diketik di chat bot
 
-1. Buka [@BotFather](https://t.me/BotFather) di Telegram, kirim `/newbot`, ikuti langkahnya, salin **token**-nya.
-2. Kirim `/setprivacy` → pilih bot Anda → **Disable**, supaya bot bisa membaca pesan di grup (dipakai untuk mendeteksi ID grup).
+Kalau Anda pernah dapat pesan ini dari Telegram:
+
+> *The code was entered correctly, but sign in was not allowed, because this code was previously shared by your account.*
+
+itu **bukan bug**. Telegram memindai pesan yang Anda kirim; begitu kode login terdeteksi pernah muncul di dalam sebuah chat, kode itu langsung dibatalkan — walaupun ditulis dengan spasi, tanda hubung, atau emoji di antaranya. Ini perlindungan Telegram terhadap penipuan "minta kirim kodenya ke saya".
+
+Karena itu login di sini **tidak pernah memakai kode di chat**. Ada dua jalur, dua-duanya aman:
+
+| Jalur | Caranya | Kapan dipakai |
+| --- | --- | --- |
+| **QR** (disarankan) | `/login` di bot → bot mengirim gambar QR → pindai dari HP | Paling praktis, tidak ada yang perlu diketik |
+| **Terminal** | `npm run login` di komputer tempat bot jalan | Kalau QR gagal, atau bot dijalankan tanpa chat |
+
+Password 2FA boleh dikirim lewat chat — yang dibatalkan Telegram hanya kode login, bukan password. Bot menghapus pesan itu segera setelah dipakai.
+
+## 1. Siapkan dua kredensial
+
+**Bot pengendali** — buka [@BotFather](https://t.me/BotFather), kirim `/newbot`, salin token.
+
+**Akun pengirim** — buka [my.telegram.org/apps](https://my.telegram.org/apps), login dengan nomor Anda, buat aplikasi, salin **App api_id** dan **App api_hash**.
 
 ## 2. Konfigurasi
 
 ```bash
-cp .env.example .env      # Windows: copy .env.example .env
+npm install
+copy .env.example .env
 ```
 
 Isi `.env`:
 
 ```
-BOT_TOKEN=1234567890:AAxxxxxxxxxxxxxxxxxxxxxxxxxxx
-OWNER_ID=            # boleh dikosongkan, lihat langkah 3
-PORT=3000
-TZ=Asia/Jakarta
+BOT_TOKEN=1234567890:AAxxxxxxxxxxxxxxxxxxxxx
+OWNER_ID=
+API_ID=1234567
+API_HASH=abcdef1234567890abcdef1234567890
 ```
 
-## 3. Jalankan
+## 3. Jalankan dan hubungkan akun
 
 ```bash
 npm start
 ```
 
-Chat bot Anda di Telegram, kirim `/start`. Kalau `OWNER_ID` masih kosong, bot akan menampilkan ID Telegram Anda — kirim `/claim` untuk menjadikan akun itu owner (tersimpan permanen di `data/config.json`). Setelah itu perintah dari akun lain akan ditolak.
+1. Chat bot Anda, kirim `/start` → bot menampilkan ID Telegram Anda → kirim `/claim` supaya akun itu jadi owner. Setelah itu perintah dari siapa pun ditolak.
+2. Kirim `/login`. Bot mengirim gambar QR yang berganti otomatis tiap 30 detik.
+3. Di HP: **Telegram → Pengaturan → Perangkat → Tautkan Perangkat Desktop**, lalu pindai QR-nya.
+4. Kalau akun pakai 2FA, bot meminta passwordnya lewat chat dan langsung menghapus pesannya.
 
-## 4. Daftarkan grup (scan ID)
+**Kalau QR bermasalah**, login dari terminal:
 
-Bot API tidak bisa membaca daftar grup Anda seperti akun biasa, jadi grup dicatat otomatis begitu bot melihatnya:
+```bash
+npm run login            # tanya mau QR atau kode
+npm run login -- --kode  # langsung ke jalur kode OTP
+npm run login -- --qr    # langsung ke jalur QR (QR digambar di terminal)
+```
 
-1. Tambahkan bot ke grup tujuan, lalu jadikan **admin** (wajib kalau grup membatasi siapa yang boleh mengirim pesan).
-2. Begitu bot masuk, owner langsung dapat notifikasi berisi nama dan ID grup.
-3. Kalau grup lama belum muncul, ketik `/id` di dalam grup itu — bot membalas ID-nya sekaligus mencatatnya.
-4. Kirim `/scan` di chat pribadi untuk melihat semua grup yang terdeteksi. Klik tombol ⬜/✅ untuk memilih grup mana yang jadi tujuan posting.
+Di jalur kode, OTP diketik **di terminal**, bukan di Telegram — jadi tidak ikut dibatalkan.
 
-Alternatif cepat: ketik `/addhere` di dalam grup (khusus owner) untuk langsung menjadikan grup itu tujuan.
+Sesi login tersimpan di `data/session.txt`, jadi restart berikutnya tidak perlu login lagi.
+
+## 4. Pilih grup tujuan
+
+Kirim `/scan` — bot membaca semua grup, supergrup, dan channel (yang Anda jadi adminnya) dari akun Anda, lengkap dengan **ID**-nya. Klik tombol ⬜/✅ untuk menandai tujuan posting. Daftar tersimpan di `data/groups.json`.
+
+Daftar ditampilkan 15 grup per halaman dengan tombol **⬅️ Sebelumnya / Berikutnya ➡️**, karena satu pesan Telegram maksimal 4096 karakter — daftar ratusan grup tidak akan muat dalam satu pesan.
+
+Manual: `/target add -1001234567890`, `/target del ID`, `/target clear`.
 
 ## 5. Atur isi dan jadwal
+
+> Kalau auto post terasa "tidak jalan", kirim **`/diag`** — bot menandai ✅/❌ pada setiap syarat (akun, tujuan, isi, timer) dan menyebut berapa menit lagi kiriman berikutnya.
 
 | Perintah | Fungsi |
 | --- | --- |
 | `/settext` | Atur teks. Bisa langsung: `/settext Promo hari ini` |
-| `/setgambar` | Kirim foto ke bot, atau `/setgambar https://...` |
-| `/hapusgambar` | Kirim teks saja tanpa gambar |
+| `/setgambar` | Kirim fotonya ke bot; bot mengunduh dan menyimpannya ke `uploads/` |
+| `/hapusgambar` | Kirim teks saja |
 | `/mode html\|markdown\|none` | Format teks |
-| `/pratinjau` | Bot mengirim contoh persis seperti yang akan diposting |
-| `/setinterval 30` | Kirim tiap 30 menit |
-| `/setjeda 5` | Jeda 5 detik antar grup (anti-flood) |
-| `/on` / `/off` | Nyalakan / matikan auto post |
+| `/pratinjau` | Contoh postingan dikirim ke **Pesan Tersimpan** akun Anda |
+| `/setinterval 60` | Kirim tiap 60 menit |
+| `/setjeda 15` | Jeda 15 detik antar grup |
+| `/on` `/off` | Nyalakan / matikan auto post (`/on` langsung mengirim satu putaran sebagai pembuktian) |
 | `/kirim` | Kirim sekarang juga |
-| `/scan`, `/target` | Kelola grup tujuan |
-| `/status`, `/log` | Ringkasan pengaturan & hasil pengiriman terakhir |
+| `/status` `/log` | Ringkasan pengaturan & hasil pengiriman terakhir |
+| `/diag` | Periksa satu per satu kenapa auto post kirim / tidak kirim |
+| `/notif mati\|penting\|semua` | Seberapa sering bot melapor (bawaan: hanya kalau ada masalah) |
+| `/autohapus langsung\|3x\|fatal` | Kapan grup gagal dibuang dari tujuan (bawaan: 3x gagal beruntun) |
+| `/akun` `/logout` | Info akun pengirim / putuskan akun |
 
-## Anti-flood & grup bermasalah
+## Anti-flood dan grup bermasalah
 
-- Pengiriman dilakukan satu grup per satu grup dengan jeda `setjeda` detik.
-- Kalau Telegram membalas `429 Too Many Requests`, bot menunggu sesuai `retry_after` lalu mengulang otomatis.
-- Kalau bot dikeluarkan/diblokir/tidak punya izin kirim di sebuah grup, grup itu **otomatis dilepas** dari daftar tujuan dan owner diberi tahu, jadi siklus berikutnya tidak tersendat.
+- Pengiriman satu grup per satu grup dengan jeda `setjeda` detik.
+- Kena `FLOOD_WAIT` atau `SLOWMODE_WAIT` → bot menunggu sesuai permintaan Telegram lalu mengulang sekali. Kalau diminta menunggu lebih dari 5 menit, grup itu dilewati dulu supaya siklus tidak macet.
+- Grup yang membalas `CHAT_WRITE_FORBIDDEN`, `USER_BANNED_IN_CHANNEL`, `CHANNEL_PRIVATE`, dan sejenisnya **selalu langsung dilepas** — itu bukti akun sudah dikeluarkan atau diblokir di sana.
+- Kegagalan lain (jaringan, timeout, slowmode) dihitung: setelah **3 kali gagal beruntun** grup ikut dilepas. Satu kali berhasil mereset hitungannya. Ubah dengan `/autohapus langsung` (sekali gagal langsung dibuang) atau `/autohapus fatal` (hanya kalau benar-benar dikick).
+- `/diag` menampilkan grup mana yang sedang bermasalah dan sudah berapa kali gagal, sebelum ia dibuang.
+- `/on` ditolak kalau akun belum login, tujuan kosong, atau isi postingan kosong.
+- Pengiriman berjalan di **latar belakang**: bot tetap menjawab perintah selama mengirim ke puluhan grup, dan `/off` menghentikan pengiriman yang sedang berjalan.
+- **Tidak ada laporan tiap siklus.** Auto post yang berjalan mulus tidak mengirim pesan apa pun; buktinya dilihat lewat `/status` pada baris `Terkirim` — misalnya `24/08 20:15 · 12 berhasil, 0 gagal`.
+- Yang tetap dilaporkan hanya **masalah**: grup gagal, grup dilepas, atau siklus dilewati (akun terputus, isi kosong) — sekali per penyebab. Atur dengan `/notif`; `/notif mati` membuat bot benar-benar diam dan semuanya hanya lewat `/status`.
+- Kiriman manual (`/kirim`, `/on`) tetap dibalas karena Anda yang memintanya.
+- Sebelum menyerah, bot mencoba **menyambung ulang** akun yang koneksinya putus.
+- Setiap pengiriman punya **batas waktu 90 detik**. Tanpa ini, satu koneksi MTProto yang macet membuat penjadwal mengira dirinya "sedang mengirim" selamanya, dan seluruh auto post mati permanen.
+- Ada **watchdog** tiap menit: kalau timer auto post hilang atau macet (misalnya setelah komputer sleep), timer dipasang ulang otomatis. Kondisinya bisa dilihat di baris `Penjadwal:` pada `/status`.
 
-## Catatan
+## ⚠️ Risiko akun
 
-- Jangan pasang interval terlalu pendek. Telegram membatasi sekitar 20 pesan per menit ke grup yang berbeda; interval 15–60 menit jauh lebih aman dan tidak memicu pembatasan akun.
-- Jangan jalankan dua proses bot dengan token yang sama — Telegram akan menolak dengan error `409 Conflict`.
-- `data/` berisi pengaturan dan daftar grup, `.env` berisi token. Keduanya sudah masuk `.gitignore`; jangan dibagikan.
-- Uji cepat tanpa menyentuh Telegram: `npm test`.
+Posting otomatis dari akun pribadi bisa membuat akun kena limit sementara sampai banned permanen kalau terlalu agresif. Yang mengurangi risiko:
+
+- Interval **minimal 15–30 menit** (bot memperingatkan kalau Anda memaksa di bawah 15).
+- Jeda antar grup minimal 5–15 detik.
+- Jangan pakai akun utama kalau grup tujuannya banyak.
+- Variasikan isi pesan; teks identik yang dikirim berulang ke puluhan grup paling cepat terdeteksi spam.
+
+Isi `data/session.txt` setara akses penuh ke akun Telegram Anda — jangan dibagikan atau di-commit. `.env` dan `data/` sudah masuk `.gitignore`.
+
+## Uji tanpa menyentuh Telegram
+
+```bash
+npm test
+```
+
+Menjalankan sebelas berkas uji dengan Telegram tiruan: alur login QR (termasuk pembaruan QR dan 2FA), login kode lewat terminal, penolakan nomor tanpa kode negara, scan grup, pemilihan tujuan lewat tombol, penyimpanan teks/gambar, penolakan non-owner, retry `FLOOD_WAIT`, pelepasan grup terlarang, paginasi daftar grup dengan 120 grup (setiap halaman dipastikan di bawah batas 4096 karakter), judul grup ber-emoji (dipastikan tidak terpotong di tengah emoji sehingga ditolak Telegram), penjadwal auto post dengan jam palsu (siklus berulang, notifikasi saat dilewati, sambung ulang, dan watchdog), audit yang menjalankan setiap perintah dan setiap tombol satu per satu, uji responsif (bot tetap menjawab selama pengiriman panjang dan bisa dihentikan di tengah jalan), uji anti-macet (pengiriman yang menggantung menyerah karena batas waktu, bukan mengunci penjadwal selamanya), uji laporan (siklus mulus tidak mengirim pesan, tapi hasilnya tetap terbaca di `/status`), serta uji pembuangan grup gagal (yang dikick langsung dibuang, yang cuma gangguan sesaat tidak ikut terbuang).
 
 ## Struktur
 
 ```
-src/index.js      bootstrap, long polling, health check HTTP
-src/bot.js        perintah owner, menu tombol, pencatatan grup
-src/scheduler.js  siklus posting, jeda antar grup, penanganan error
-src/api.js        pembungkus Bot API + retry 429/5xx
-src/store.js      penyimpanan config.json & groups.json
-legacy/           kode lama berbasis login akun (GramJS), tidak dipakai lagi
+src/index.js       bootstrap: polling bot, sambung akun, health check HTTP
+src/bot.js         perintah owner, menu tombol, QR login lewat chat
+src/userClient.js  akun pengirim (GramJS): login QR/kode, daftar grup, kirim post
+src/cliLogin.js    alur login versi terminal
+src/qr.js          pembuatan QR (PNG untuk chat, ASCII untuk terminal)
+src/scheduler.js   siklus posting, jeda antar grup, FLOOD_WAIT, auto-drop
+src/api.js         pembungkus Bot API + unggah/unduh gambar + retry
+src/store.js       penyimpanan config.json & groups.json
+src/text.js        pembersih teks & pemotong aman-emoji untuk tombol
+login.js           entri "npm run login"
+data/              sesi login + pengaturan (rahasia, jangan dibagikan)
+legacy/            panel web lama, tidak dipakai lagi
 ```

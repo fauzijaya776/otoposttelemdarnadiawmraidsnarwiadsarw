@@ -9,14 +9,17 @@ const groupsPath = path.join(dataDir, 'groups.json');
 const defaultConfig = {
   ownerId: null,          // diisi lewat .env OWNER_ID atau perintah /claim
   enabled: false,         // status auto post
-  intervalMinutes: 30,    // jarak antar siklus posting
-  gapSeconds: 5,          // jeda antar grup dalam satu siklus (anti-flood)
+  intervalMinutes: 60,    // jarak antar siklus posting
+  gapSeconds: 15,         // jeda antar grup dalam satu siklus (anti-flood akun)
   text: '',               // teks yang dikirim
-  photo: '',              // file_id hasil upload ke bot, atau URL gambar
-  parseMode: 'HTML',      // HTML | Markdown | none
+  imagePath: '',          // lokasi file gambar di folder uploads/
+  parseMode: 'html',      // html | md | none
+  notifyLevel: 'penting', // semua | penting | mati — seberapa cerewet laporan ke owner
+  autoRemove: '3x',       // langsung | 3x | fatal — kapan grup gagal dilepas dari tujuan
   disablePreview: false,
   targets: [],            // daftar chat id tujuan (string)
   lastRunAt: null,
+  lastRunStats: null,     // { sent, failed, manual } dari siklus terakhir
   nextRunAt: null,
   lastResults: []         // ringkasan pengiriman terakhir
 };
@@ -57,8 +60,8 @@ function saveConfig(patch = {}) {
   config = { ...getConfig(), ...patch };
   if (!Array.isArray(config.targets)) config.targets = [];
   config.targets = [...new Set(config.targets.map(String))];
-  config.intervalMinutes = clamp(toNumber(config.intervalMinutes, 30), 1, 10080);
-  config.gapSeconds = clamp(toNumber(config.gapSeconds, 5), 0, 600);
+  config.intervalMinutes = clamp(toNumber(config.intervalMinutes, 60), 1, 10080);
+  config.gapSeconds = clamp(toNumber(config.gapSeconds, 15), 0, 600);
   writeJson(configPath, config);
   return config;
 }
@@ -72,27 +75,6 @@ function saveGroups(next) {
   groups = next;
   writeJson(groupsPath, groups);
   return groups;
-}
-
-// Dipanggil setiap bot melihat sebuah chat, jadi daftar grup terisi otomatis.
-function rememberChat(chat, patch = {}) {
-  if (!chat || !chat.id) return null;
-  const all = getGroups();
-  const key = String(chat.id);
-  const before = all[key] || {};
-  all[key] = {
-    id: key,
-    title: chat.title || chat.username || before.title || `Chat ${key}`,
-    type: chat.type || before.type || 'unknown',
-    username: chat.username || before.username || '',
-    status: 'ok',
-    error: '',
-    firstSeenAt: before.firstSeenAt || new Date().toISOString(),
-    lastSeenAt: new Date().toISOString(),
-    ...patch
-  };
-  saveGroups(all);
-  return all[key];
 }
 
 function markChat(chatId, patch) {
@@ -125,7 +107,6 @@ module.exports = {
   saveConfig,
   getGroups,
   saveGroups,
-  rememberChat,
   markChat,
   forgetChat
 };

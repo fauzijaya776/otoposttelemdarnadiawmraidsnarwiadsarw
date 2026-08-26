@@ -1,8 +1,8 @@
 {
   "name": "telegram-auto-poster",
-  "version": "2.0.0",
+  "version": "3.9.0",
   "private": true,
-  "description": "Bot auto post Telegram (BotFather) dengan pengaturan teks, gambar, interval, dan multi-grup lewat chat.",
+  "description": "Auto post Telegram dari akun pribadi, dikendalikan lewat bot BotFather (teks, gambar, interval, multi-grup).",
   "main": "src/index.js",
   "engines": {
     "node": ">=18"
@@ -10,7 +10,11 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "node test/smoke.test.js"
+    "login": "node login.js",
+    "test": "node test/login.test.js && node test/smoke.test.js && node test/cli.test.js && node test/pagination.test.js && node test/unicode.test.js && node test/scheduler.test.js && node test/audit.test.js && node test/responsif.test.js && node test/macet.test.js && node test/notif.test.js && node test/buanggagal.test.js"
   },
-  "dependencies": {}
+  "dependencies": {
+    "telegram": "^2.26.22",
+    "qrcode": "^1.5.4"
+  }
 }
