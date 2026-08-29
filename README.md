@@ -107,7 +107,7 @@ Manual: `/target add -1001234567890`, `/target del ID`, `/target clear`.
 | `/pratinjau` | Contoh postingan dikirim ke **Pesan Tersimpan** akun Anda |
 | `/setinterval 60` | Kirim tiap 60 menit |
 | `/setjeda 15` | Jeda 15 detik antar grup |
-| `/on` `/off` | Nyalakan / matikan auto post (`/on` langsung mengirim satu putaran sebagai pembuktian) |
+| `/on` `/off` | Nyalakan / matikan auto post. Menyalakan **selalu** langsung mengirim satu putaran sebagai pembuktian — sama saja lewat perintah atau lewat tombol ▶️ di panel |
 | `/kirim` | Kirim sekarang juga |
 | `/status` `/log` | Ringkasan pengaturan & hasil pengiriman terakhir |
 | `/diag` | Periksa satu per satu kenapa auto post kirim / tidak kirim |
@@ -148,7 +148,7 @@ Isi `data/session.txt` setara akses penuh ke akun Telegram Anda — jangan dibag
 npm test
 ```
 
-Menjalankan dua belas berkas uji dengan Telegram tiruan: alur login QR (termasuk pembaruan QR dan 2FA), login kode lewat terminal, penolakan nomor tanpa kode negara, scan grup, pemilihan tujuan lewat tombol, penyimpanan teks/gambar, penolakan non-owner, retry `FLOOD_WAIT`, pelepasan grup terlarang, paginasi daftar grup dengan 120 grup (setiap halaman dipastikan di bawah batas 4096 karakter), judul grup ber-emoji (dipastikan tidak terpotong di tengah emoji sehingga ditolak Telegram), penjadwal auto post dengan jam palsu (siklus berulang, notifikasi saat dilewati, sambung ulang, dan watchdog), audit yang menjalankan setiap perintah dan setiap tombol satu per satu, uji responsif (bot tetap menjawab selama pengiriman panjang dan bisa dihentikan di tengah jalan), uji anti-macet (pengiriman yang menggantung menyerah karena batas waktu, bukan mengunci penjadwal selamanya), uji laporan (siklus mulus tidak mengirim pesan, tapi hasilnya tetap terbaca di `/status`), uji pembuangan grup gagal (yang dikick langsung dibuang, yang cuma gangguan sesaat tidak ikut terbuang), serta uji hosting (sesi dari SESSION_STRING mengalahkan berkas, dan penanganan konflik dua instance).
+Menjalankan tiga belas berkas uji dengan Telegram tiruan: alur login QR (termasuk pembaruan QR dan 2FA), login kode lewat terminal, penolakan nomor tanpa kode negara, scan grup, pemilihan tujuan lewat tombol, penyimpanan teks/gambar, penolakan non-owner, retry `FLOOD_WAIT`, pelepasan grup terlarang, paginasi daftar grup dengan 120 grup (setiap halaman dipastikan di bawah batas 4096 karakter), judul grup ber-emoji (dipastikan tidak terpotong di tengah emoji sehingga ditolak Telegram), penjadwal auto post dengan jam palsu (siklus berulang, notifikasi saat dilewati, sambung ulang, dan watchdog), audit yang menjalankan setiap perintah dan setiap tombol satu per satu, uji responsif (bot tetap menjawab selama pengiriman panjang dan bisa dihentikan di tengah jalan), uji anti-macet (pengiriman yang menggantung menyerah karena batas waktu, bukan mengunci penjadwal selamanya), uji laporan (siklus mulus tidak mengirim pesan, tapi hasilnya tetap terbaca di `/status`), uji pembuangan grup gagal (yang dikick langsung dibuang, yang cuma gangguan sesaat tidak ikut terbuang), uji hosting (sesi dari SESSION_STRING mengalahkan berkas, dan penanganan konflik dua instance), serta uji aktifkan (tombol panel dan perintah `/on` dipaksa menghasilkan keadaan yang sama persis).
 
 ## Struktur
 

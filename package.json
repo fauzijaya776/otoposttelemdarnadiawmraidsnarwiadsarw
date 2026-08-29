@@ -1,6 +1,6 @@
 {
   "name": "telegram-auto-poster",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "private": true,
   "description": "Auto post Telegram dari akun pribadi, dikendalikan lewat bot BotFather (teks, gambar, interval, multi-grup).",
   "main": "src/index.js",
@@ -11,7 +11,7 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "login": "node login.js",
-    "test": "node test/login.test.js && node test/smoke.test.js && node test/cli.test.js && node test/pagination.test.js && node test/unicode.test.js && node test/scheduler.test.js && node test/audit.test.js && node test/responsif.test.js && node test/macet.test.js && node test/notif.test.js && node test/buanggagal.test.js && node test/hosting.test.js",
+    "test": "node test/login.test.js && node test/smoke.test.js && node test/cli.test.js && node test/pagination.test.js && node test/unicode.test.js && node test/scheduler.test.js && node test/audit.test.js && node test/responsif.test.js && node test/macet.test.js && node test/notif.test.js && node test/buanggagal.test.js && node test/hosting.test.js && node test/aktifkan.test.js",
     "sesi": "node sesi.js"
   },
   "dependencies": {

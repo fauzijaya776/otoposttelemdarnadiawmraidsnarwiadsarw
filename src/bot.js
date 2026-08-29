@@ -474,30 +474,12 @@ function createBot({ api, scheduler, userClient, me, qrTools = defaultQrTools, v
         return reply(chatId, `✅ Jeda antar grup jadi ${config.gapSeconds} detik.${gapWarning(config)}`);
       }
 
-      case '/on': {
-        const problem = await validateReady();
-        if (problem) return reply(chatId, `⚠️ ${problem}`);
-        store.saveConfig({ enabled: true });
-        const nextRunAt = scheduler.reschedule();
-        const config = store.getConfig();
-        await reply(
-          chatId,
-          `🟢 Auto post aktif setiap ${config.intervalMinutes} menit ke ${config.targets.length} grup.\n` +
-            `Kiriman berikutnya: ${formatTime(nextRunAt)}${intervalWarning(config)}\n\n` +
-            '⏳ Mengirim satu putaran sekarang sebagai pembuktian…\n' +
-            'Setelah ini bot tidak mengabari tiap siklus — cek hasilnya lewat /status.',
-          { reply_markup: menuKeyboard() }
-        );
-        // Kirim sekali langsung supaya owner tahu pipeline-nya benar-benar bekerja,
-        // bukan menunggu satu interval penuh tanpa kepastian.
-        kirimDiLatarBelakang(chatId);
+      case '/on':
+        await aktifkanAutoPost(chatId);
         return null;
-      }
 
       case '/off': {
-        store.saveConfig({ enabled: false, nextRunAt: null });
-        scheduler.stop();
-        const dihentikan = scheduler.abort ? scheduler.abort() : false;
+        const dihentikan = matikanAutoPost();
         return reply(
           chatId,
           dihentikan
@@ -690,16 +672,12 @@ function createBot({ api, scheduler, userClient, me, qrTools = defaultQrTools, v
         );
       }
       case 'toggle': {
-        const config = store.getConfig();
-        if (!config.enabled) {
-          const problem = await validateReady();
-          if (problem) return reply(chatId, `⚠️ ${problem}`);
-          store.saveConfig({ enabled: true });
-          scheduler.reschedule();
+        if (!store.getConfig().enabled) {
+          // Persis seperti /on: menyalakan sekaligus mengirim putaran pembuktian.
+          await aktifkanAutoPost(chatId);
         } else {
-          store.saveConfig({ enabled: false, nextRunAt: null });
-          scheduler.stop();
-          if (scheduler.abort) scheduler.abort();
+          matikanAutoPost();
+          await reply(chatId, '🔴 Auto post dimatikan.');
         }
         return safeEdit(query, await statusText(), menuKeyboard());
       }
@@ -768,6 +746,42 @@ function createBot({ api, scheduler, userClient, me, qrTools = defaultQrTools, v
     const config = store.getConfig();
     store.saveConfig({ targets: [...config.targets, String(chatId)] });
     store.markChat(chatId, { status: 'ok', error: '' });
+  }
+
+  /**
+   * Menyalakan auto post. SATU jalur untuk perintah /on dan tombol panel —
+   * dulu tombolnya hanya memasang jadwal tanpa mengirim putaran pembuktian,
+   * jadi owner mengira auto post tidak jalan.
+   * @returns pesan status, atau null kalau ada syarat yang belum terpenuhi
+   */
+  async function aktifkanAutoPost(chatId) {
+    const problem = await validateReady();
+    if (problem) {
+      await reply(chatId, `⚠️ ${problem}`);
+      return null;
+    }
+
+    store.saveConfig({ enabled: true });
+    const nextRunAt = scheduler.reschedule();
+    const config = store.getConfig();
+
+    await reply(
+      chatId,
+      `🟢 Auto post aktif setiap ${config.intervalMinutes} menit ke ${config.targets.length} grup.\n` +
+        `Kiriman berikutnya: ${formatTime(nextRunAt)}${intervalWarning(config)}\n\n` +
+        '⏳ Mengirim satu putaran sekarang sebagai pembuktian…\n' +
+        'Setelah ini bot tidak mengabari tiap siklus — cek hasilnya lewat /status.',
+      { reply_markup: menuKeyboard() }
+    );
+    kirimDiLatarBelakang(chatId);
+    return true;
+  }
+
+  /** Mematikan auto post, termasuk menghentikan pengiriman yang sedang berjalan. */
+  function matikanAutoPost() {
+    store.saveConfig({ enabled: false, nextRunAt: null });
+    scheduler.stop();
+    return scheduler.abort ? scheduler.abort() : false;
   }
 
   // Pengiriman ke puluhan grup bisa makan menit-menitan. Kalau ditunggu di dalam
