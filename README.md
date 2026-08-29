@@ -69,6 +69,23 @@ Di jalur kode, OTP diketik **di terminal**, bukan di Telegram — jadi tidak iku
 
 Sesi login tersimpan di `data/session.txt`, jadi restart berikutnya tidak perlu login lagi.
 
+## 3b. Kalau dipasang di hosting (Render, Railway, dll)
+
+Dua hal yang membuat bot terlihat "tidak jalan" di hosting:
+
+**1. Paket gratis tidak punya disk permanen.** `data/session.txt` terhapus setiap restart dan deploy, jadi akun selalu kembali ke keadaan belum login dan auto post selalu dilewati. Login QR di sana pun akan hilang lagi. Solusinya simpan sesi di environment variable:
+
+```bash
+npm run login   # di komputer Anda, sekali saja
+npm run sesi    # menampilkan SESSION_STRING=...
+```
+
+Salin nilainya ke **Environment → SESSION_STRING** di dashboard hosting, lalu restart. Saat start, log akan menulis `[akun] sesi dibaca dari SESSION_STRING (environment)`.
+
+> `SESSION_STRING` setara akses penuh ke akun Telegram Anda. Jangan di-commit, jangan ditempel di chat mana pun.
+
+**2. Jangan jalankan bot di dua tempat sekaligus.** Kalau `npm start` hidup di komputer sementara service di Render juga hidup, keduanya memakai `BOT_TOKEN` yang sama dan berebut update — perintah Anda masuk ke salah satu secara acak, dan satu siklus bisa terkirim dua kali. Telegram menandainya dengan error `409 Conflict`; bot sekarang berhenti sendiri setelah 3 kali konflik sambil menjelaskan mana yang harus dimatikan. Kalau memang butuh dua-duanya, buat bot kedua di @BotFather dengan token berbeda.
+
 ## 4. Pilih grup tujuan
 
 Kirim `/scan` — bot membaca semua grup, supergrup, dan channel (yang Anda jadi adminnya) dari akun Anda, lengkap dengan **ID**-nya. Klik tombol ⬜/✅ untuk menandai tujuan posting. Daftar tersimpan di `data/groups.json`.
@@ -131,7 +148,7 @@ Isi `data/session.txt` setara akses penuh ke akun Telegram Anda — jangan dibag
 npm test
 ```
 
-Menjalankan sebelas berkas uji dengan Telegram tiruan: alur login QR (termasuk pembaruan QR dan 2FA), login kode lewat terminal, penolakan nomor tanpa kode negara, scan grup, pemilihan tujuan lewat tombol, penyimpanan teks/gambar, penolakan non-owner, retry `FLOOD_WAIT`, pelepasan grup terlarang, paginasi daftar grup dengan 120 grup (setiap halaman dipastikan di bawah batas 4096 karakter), judul grup ber-emoji (dipastikan tidak terpotong di tengah emoji sehingga ditolak Telegram), penjadwal auto post dengan jam palsu (siklus berulang, notifikasi saat dilewati, sambung ulang, dan watchdog), audit yang menjalankan setiap perintah dan setiap tombol satu per satu, uji responsif (bot tetap menjawab selama pengiriman panjang dan bisa dihentikan di tengah jalan), uji anti-macet (pengiriman yang menggantung menyerah karena batas waktu, bukan mengunci penjadwal selamanya), uji laporan (siklus mulus tidak mengirim pesan, tapi hasilnya tetap terbaca di `/status`), serta uji pembuangan grup gagal (yang dikick langsung dibuang, yang cuma gangguan sesaat tidak ikut terbuang).
+Menjalankan dua belas berkas uji dengan Telegram tiruan: alur login QR (termasuk pembaruan QR dan 2FA), login kode lewat terminal, penolakan nomor tanpa kode negara, scan grup, pemilihan tujuan lewat tombol, penyimpanan teks/gambar, penolakan non-owner, retry `FLOOD_WAIT`, pelepasan grup terlarang, paginasi daftar grup dengan 120 grup (setiap halaman dipastikan di bawah batas 4096 karakter), judul grup ber-emoji (dipastikan tidak terpotong di tengah emoji sehingga ditolak Telegram), penjadwal auto post dengan jam palsu (siklus berulang, notifikasi saat dilewati, sambung ulang, dan watchdog), audit yang menjalankan setiap perintah dan setiap tombol satu per satu, uji responsif (bot tetap menjawab selama pengiriman panjang dan bisa dihentikan di tengah jalan), uji anti-macet (pengiriman yang menggantung menyerah karena batas waktu, bukan mengunci penjadwal selamanya), uji laporan (siklus mulus tidak mengirim pesan, tapi hasilnya tetap terbaca di `/status`), uji pembuangan grup gagal (yang dikick langsung dibuang, yang cuma gangguan sesaat tidak ikut terbuang), serta uji hosting (sesi dari SESSION_STRING mengalahkan berkas, dan penanganan konflik dua instance).
 
 ## Struktur
 
@@ -146,6 +163,7 @@ src/api.js         pembungkus Bot API + unggah/unduh gambar + retry
 src/store.js       penyimpanan config.json & groups.json
 src/text.js        pembersih teks & pemotong aman-emoji untuk tombol
 login.js           entri "npm run login"
+sesi.js            entri "npm run sesi" — menampilkan SESSION_STRING
 data/              sesi login + pengaturan (rahasia, jangan dibagikan)
 legacy/            panel web lama, tidak dipakai lagi
 ```

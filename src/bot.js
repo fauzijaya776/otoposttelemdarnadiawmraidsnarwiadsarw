@@ -839,7 +839,12 @@ function createBot({ api, scheduler, userClient, me, qrTools = defaultQrTools, v
     const baris = [];
 
     baris.push(`<b>Diagnosa Auto Poster</b> (versi ${escapeHtml(version)})`, '');
-    baris.push(`${account.loggedIn ? '✅' : '❌'} Akun: ${account.loggedIn ? escapeHtml(account.account.name) : 'belum login → /login'}`);
+    const sumberSesi = require('./userClient').sessionSource();
+    const labelSesi = { env: 'SESSION_STRING', file: 'data/session.txt', none: '—' }[sumberSesi];
+    baris.push(
+      `${account.loggedIn ? '✅' : '❌'} Akun: ${account.loggedIn ? escapeHtml(account.account.name) : 'belum login → /login'}` +
+        (sumberSesi === 'none' ? '' : ` <i>(sesi: ${labelSesi})</i>`)
+    );
     baris.push(`${config.targets.length ? '✅' : '❌'} Grup tujuan: ${config.targets.length}${config.targets.length ? '' : ' → /scan'}`);
     baris.push(`${config.text || config.imagePath ? '✅' : '❌'} Isi: ${config.text ? 'teks' : ''}${config.imagePath ? (config.text ? ' + gambar' : 'gambar') : ''}${!config.text && !config.imagePath ? 'kosong → /settext' : ''}`);
     baris.push(`${config.enabled ? '✅' : '❌'} Auto post: ${config.enabled ? 'aktif' : 'mati → /on'}`);

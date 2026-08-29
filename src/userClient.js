@@ -5,7 +5,15 @@ const path = require('path');
 const dataDir = path.join(__dirname, '..', 'data');
 const sessionPath = path.join(dataDir, 'session.txt');
 
+/**
+ * Sumber sesi, berurutan:
+ *   1. SESSION_STRING di environment — wajib untuk hosting tanpa disk permanen
+ *      (Render free tier menghapus seluruh berkas tiap restart/deploy).
+ *   2. data/session.txt — hasil login lokal.
+ */
 function readSession() {
+  const fromEnv = String(process.env.SESSION_STRING || '').trim();
+  if (fromEnv) return fromEnv;
   try {
     return fs.existsSync(sessionPath) ? fs.readFileSync(sessionPath, 'utf8').trim() : '';
   } catch {
@@ -13,9 +21,25 @@ function readSession() {
   }
 }
 
+/** Dari mana sesi yang sedang dipakai berasal — dipakai /diag dan log startup. */
+function sessionSource() {
+  if (String(process.env.SESSION_STRING || '').trim()) return 'env';
+  try {
+    if (fs.existsSync(sessionPath) && fs.readFileSync(sessionPath, 'utf8').trim()) return 'file';
+  } catch {
+    /* abaikan */
+  }
+  return 'none';
+}
+
 function writeSession(value) {
   fs.mkdirSync(dataDir, { recursive: true });
   fs.writeFileSync(sessionPath, value, { mode: 0o600 });
+}
+
+/** String sesi mentah, untuk disalin ke SESSION_STRING pada hosting. */
+function currentSessionString() {
+  return readSession();
 }
 
 function clearSession() {
@@ -289,6 +313,9 @@ function createUserClient({ onEvent: initialListener, loadModule = () => require
       client = null;
       profile = null;
       clearSession();
+      if (String(process.env.SESSION_STRING || '').trim()) {
+        console.warn('[akun] SESSION_STRING masih terpasang di environment — hapus juga di panel hosting, kalau tidak akun tersambung lagi saat restart.');
+      }
     }
     return true;
   }
@@ -412,4 +439,11 @@ function translateAuthError(error) {
   return error?.message || 'Login gagal.';
 }
 
-module.exports = { createUserClient, readSession, clearSession, translateAuthError };
+module.exports = {
+  createUserClient,
+  readSession,
+  sessionSource,
+  currentSessionString,
+  clearSession,
+  translateAuthError
+};

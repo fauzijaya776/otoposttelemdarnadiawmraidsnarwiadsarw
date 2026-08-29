@@ -6,6 +6,14 @@ loadEnv();
 
 const store = require('./store');
 const { version } = require('../package.json');
+
+// GramJS menyentuh localStorage; di Node ini memicu ExperimentalWarning yang
+// bikin log terlihat seperti error padahal tidak berpengaruh apa pun.
+const warningAsli = process.emitWarning;
+process.emitWarning = (warning, ...rest) => {
+  if (String(warning).includes('localStorage is not available')) return;
+  return warningAsli.call(process, warning, ...rest);
+};
 const { createApi, sleep } = require('./api');
 const { createUserClient } = require('./userClient');
 const { createScheduler } = require('./scheduler');
@@ -62,6 +70,10 @@ async function main() {
   console.log(owner ? `[bot] owner: ${owner}` : '[bot] owner belum diatur — kirim /claim ke bot dari akun Anda.');
 
   // Sambungkan kembali akun pengirim kalau sesinya masih tersimpan.
+  const sumberSesi = require('./userClient').sessionSource();
+  if (sumberSesi !== 'none') {
+    console.log(`[akun] sesi dibaca dari ${sumberSesi === 'env' ? 'SESSION_STRING (environment)' : 'data/session.txt'}`);
+  }
   const account = await userClient.connectIfPossible();
   if (account) {
     console.log(`[akun] terhubung sebagai ${account.name}`);
@@ -71,6 +83,18 @@ async function main() {
     console.log('        2. Jalankan "npm run login" di terminal ini.');
     if (!require('./qr').isAvailable()) {
       console.warn('        (paket "qrcode" belum terpasang — jalankan "npm install" agar QR bisa dibuat)');
+    }
+    if (diHosting()) {
+      console.warn('');
+      console.warn('  ⚠️  Terdeteksi berjalan di hosting (Render/Railway).');
+      console.warn('      Paket gratis TIDAK punya disk permanen: data/session.txt hilang setiap');
+      console.warn('      restart & deploy, jadi login lewat QR di sini akan hilang lagi.');
+      console.warn('');
+      console.warn('      Yang bertahan: simpan sesi di environment variable.');
+      console.warn('       1. Di komputer Anda:  npm run login');
+      console.warn('       2. Lalu:              npm run sesi     (menampilkan SESSION_STRING)');
+      console.warn('       3. Tempel nilainya ke Environment > SESSION_STRING di dashboard hosting.');
+      console.warn('');
     }
   }
 
@@ -97,9 +121,12 @@ async function main() {
 }
 
 // Long polling ke Bot API — hanya untuk menerima perintah owner.
+const MAX_CONFLICT = 3;
+
 async function pollUpdates(api, bot) {
   let offset = 0;
   let backoff = 1000;
+  let conflicts = 0;
 
   for (;;) {
     let updates;
@@ -110,9 +137,28 @@ async function pollUpdates(api, bot) {
         allowed_updates: ['message', 'callback_query']
       });
       backoff = 1000;
+      conflicts = 0;
     } catch (error) {
       if (error.code === 409) {
-        console.error('[poll] ada instance lain memakai token yang sama. Matikan salah satunya.');
+        // Dua proses dengan token sama saling berebut update: perintah owner
+        // masuk ke salah satu secara acak, jadi bot terasa "kadang tidak respons".
+        // Berhenti daripada memperparah — biar jelas siapa yang harus dimatikan.
+        conflicts++;
+        console.error(
+          `[poll] KONFLIK (${conflicts}/${MAX_CONFLICT}): ada bot lain memakai BOT_TOKEN yang sama.`
+        );
+        if (conflicts >= MAX_CONFLICT) {
+          console.error('');
+          console.error('  Dua proses berebut update yang sama, jadi perintah Anda masuk ke salah satunya');
+          console.error('  secara acak dan auto post bisa jalan dua kali. Instance ini berhenti.');
+          console.error('');
+          console.error('  Pilih SATU tempat saja:');
+          console.error('   • Jalan di Render  → hentikan "npm start" di komputer Anda.');
+          console.error('   • Jalan di komputer → suspend service-nya di dashboard Render.');
+          console.error('   • Butuh dua-duanya → buat bot kedua di @BotFather, pakai token berbeda.');
+          console.error('');
+          process.exit(1);
+        }
       } else if (error.code === 401) {
         console.error('[poll] token ditolak Telegram. Periksa BOT_TOKEN.');
         process.exit(1);
@@ -133,6 +179,17 @@ async function pollUpdates(api, bot) {
       }
     }
   }
+}
+
+/** Render/Railway/Fly memasang variabel khas ini. */
+function diHosting() {
+  return Boolean(
+    process.env.RENDER ||
+      process.env.RENDER_SERVICE_ID ||
+      process.env.RAILWAY_ENVIRONMENT ||
+      process.env.FLY_APP_NAME ||
+      process.env.DYNO
+  );
 }
 
 function startHealthServer(me, userClient) {
